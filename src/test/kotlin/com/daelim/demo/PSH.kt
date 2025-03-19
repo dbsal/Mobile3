@@ -1,4 +1,4 @@
 package com.daelim.demo
 
-class test {
+class PSH {
 }
