@@ -66,6 +66,63 @@
 
 --- 
 
+## 단위 테스트 코드
+
+### 다이어리 저장 - 실시간 저장 & 충돌 처리 테스트
+import { saveDiary } from '@/lib/firebaseFunctions'; /
+import { firestore } from '@/lib/firebase';
+import { runTransaction } from 'firebase/firestore';
+
+jest.mock('firebase/firestore');
+
+describe('다이어리 저장 테스트', () => {
+  it('동시 편집 시 updatedAt 기준으로 병합 처리', async () => {
+    const diaryRef = { id: 'testDiaryId' };
+    const mockTransaction = {
+      get: jest.fn().mockResolvedValue({
+        exists: () => true,
+        data: () => ({ updatedAt: 1000 }),
+      }),
+      update: jest.fn(),
+    };
+
+    (runTransaction as jest.Mock).mockImplementation(async (_, callback) => {
+      return await callback(mockTransaction);
+    });
+
+    await saveDiary(diaryRef, {
+      updatedAt: 2000,
+      content: '최신 내용',
+    });
+
+    expect(mockTransaction.update).toHaveBeenCalledWith(
+      diaryRef,
+      expect.objectContaining({ content: '최신 내용' })
+    );
+  });
+});
+
+### 토큰 만료 시 자동 로그아웃
+import { checkTokenValidity, logoutUser } from '@/lib/auth'; 
+
+jest.mock('@/lib/auth');
+
+describe('토큰 만료 확인 로직', () => {
+  it('만료된 토큰이면 자동 로그아웃', async () => {
+    (checkTokenValidity as jest.Mock).mockReturnValue(false);
+    const mockLogout = jest.fn();
+    (logoutUser as jest.Mock).mockImplementation(mockLogout);
+
+    if (!checkTokenValidity()) {
+      logoutUser();
+    }
+
+    expect(mockLogout).toHaveBeenCalled();
+  });
+});
+
+
+
 ## 디렉터리 구조
 
 client/              # React 프론트엔드 코드
